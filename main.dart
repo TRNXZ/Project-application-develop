@@ -1,15 +1,3 @@
-// เกมงู (Snake) สำหรับ dartpad.dev (เลือกโหมด Flutter)
-//
-// องค์ความรู้ที่ใช้:
-//  1) Queue    -> ตัวงูคือ Queue: หัวเข้าท้าย (addLast) / หางออกหน้า (removeFirst)
-//                 และใช้ Queue เป็น input buffer เก็บคำสั่งเลี้ยวที่กดรัว ๆ
-//  2) Hash Set -> เก็บตำแหน่งตัวงู/สิ่งกีดขวางเพื่อเช็กการชนใน O(1)
-//                 และหาช่องว่างสำหรับวางอาหาร
-//  3) Sorting  -> จัดอันดับคะแนนสูงสุด 5 อันดับ
-//
-// กติกา: กินอาหารได้ 1 คะแนน, ทุก ๆ 5 คะแนนจะมีสิ่งกีดขวางโผล่เพิ่ม,
-// ยิ่งคะแนนสูงงูยิ่งเร็ว, ชนกำแพง/ตัวเอง/สิ่งกีดขวาง = จบเกม
-
 import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
@@ -40,7 +28,6 @@ class SnakeApp extends StatelessWidget {
 const int cols = 20;
 const int rows = 20;
 
-/// ทิศ: 0 = บน, 1 = ขวา, 2 = ล่าง, 3 = ซ้าย
 const List<int> dr = [-1, 0, 1, 0];
 const List<int> dc = [0, 1, 0, -1];
 
@@ -56,11 +43,10 @@ class GamePage extends StatefulWidget {
 class _GamePageState extends State<GamePage> {
   final Random _rnd = Random();
 
-  // ตำแหน่งแต่ละช่องเข้ารหัสเป็นเลขเดียว: id = row * cols + col
-  final Queue<int> _body = Queue<int>(); // <- Queue: ตัวงู (first = หาง, last = หัว)
-  final HashSet<int> _occupied = HashSet<int>(); // <- Hash Set: ช่องที่ตัวงูอยู่
-  final HashSet<int> _obstacles = HashSet<int>(); // <- Hash Set: สิ่งกีดขวาง
-  final Queue<int> _buffer = Queue<int>(); // <- Queue: คำสั่งเลี้ยวที่รออยู่
+  final Queue<int> _body = Queue<int>();
+  final HashSet<int> _occupied = HashSet<int>();
+  final HashSet<int> _obstacles = HashSet<int>();
+  final Queue<int> _buffer = Queue<int>();
 
   int _dir = 1;
   int _food = 0;
@@ -101,7 +87,6 @@ class _GamePageState extends State<GamePage> {
     _state = GState.ready;
   }
 
-  /// สุ่มช่องว่างวางอาหาร (ช่องว่าง = ไม่อยู่ใน Hash Set ทั้งสองตัว)
   int _spawnFood() {
     final free = <int>[];
     for (var i = 0; i < rows * cols; i++) {
@@ -111,7 +96,6 @@ class _GamePageState extends State<GamePage> {
     return free[_rnd.nextInt(free.length)];
   }
 
-  /// วางสิ่งกีดขวางในช่องว่างที่อยู่ห่างจากหัวงูพอสมควร
   void _addObstacle() {
     final head = _body.last;
     final hr = head ~/ cols, hc = head % cols;
@@ -137,13 +121,12 @@ class _GamePageState extends State<GamePage> {
   void _tick() {
     if (_state != GState.running) return;
 
-    if (_buffer.isNotEmpty) _dir = _buffer.removeFirst(); // dequeue คำสั่งเลี้ยว
+    if (_buffer.isNotEmpty) _dir = _buffer.removeFirst();
 
     final head = _body.last;
     final r = head ~/ cols + dr[_dir];
     final c = head % cols + dc[_dir];
 
-    // ชนขอบ
     if (r < 0 || c < 0 || r >= rows || c >= cols) {
       _finish();
       return;
@@ -152,19 +135,17 @@ class _GamePageState extends State<GamePage> {
     final next = r * cols + c;
     final eating = next == _food;
 
-    // ถ้าไม่ได้กิน หางจะขยับออกไป (dequeue) ก่อนเช็กชน
     if (!eating) {
       final tail = _body.removeFirst();
       _occupied.remove(tail);
     }
 
-    // เช็กการชนใน O(1) ด้วย Hash Set
     if (_occupied.contains(next) || _obstacles.contains(next)) {
       _finish();
       return;
     }
 
-    _body.addLast(next); // enqueue หัวใหม่
+    _body.addLast(next);
     _occupied.add(next);
 
     if (eating) {
@@ -172,7 +153,7 @@ class _GamePageState extends State<GamePage> {
       if (_score % 5 == 0) _addObstacle();
       _food = _spawnFood();
       if (_food < 0) {
-        _cleared = true; // เต็มกระดานแล้ว ชนะ!
+        _cleared = true;
         _finish();
         return;
       }
@@ -187,7 +168,7 @@ class _GamePageState extends State<GamePage> {
     _state = GState.over;
     if (_score > 0) {
       _scores.add(_score);
-      _scores.sort((a, b) => b.compareTo(a)); // Sorting: มาก -> น้อย
+      _scores.sort((a, b) => b.compareTo(a));
       if (_scores.length > 5) _scores.removeRange(5, _scores.length);
     }
     setState(() {});
@@ -222,8 +203,8 @@ class _GamePageState extends State<GamePage> {
     if (_state == GState.ready) _start();
     if (_state != GState.running) return;
     final last = _buffer.isNotEmpty ? _buffer.last : _dir;
-    if (d == last || d == (last + 2) % 4) return; // ห้ามเลี้ยวกลับหลัง
-    if (_buffer.length < 2) _buffer.addLast(d); // enqueue
+    if (d == last || d == (last + 2) % 4) return;
+    if (_buffer.length < 2) _buffer.addLast(d);
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
@@ -427,12 +408,8 @@ class _GamePageState extends State<GamePage> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// วาดกระดาน
-// ---------------------------------------------------------------------------
-
 class BoardPainter extends CustomPainter {
-  final List<int> body; // index 0 = หาง, ตัวสุดท้าย = หัว
+  final List<int> body;
   final Set<int> obstacles;
   final int food;
 
@@ -456,7 +433,6 @@ class BoardPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cell = size.width / cols;
 
-    // พื้นลายหมากรุก
     final bg = Paint()..color = Colors.white.withOpacity(0.04);
     for (var r = 0; r < rows; r++) {
       for (var c = 0; c < cols; c++) {
@@ -466,7 +442,6 @@ class BoardPainter extends CustomPainter {
       }
     }
 
-    // สิ่งกีดขวาง
     final obsPaint = Paint()..color = Colors.blueGrey;
     for (final o in obstacles) {
       canvas.drawRRect(
@@ -476,17 +451,15 @@ class BoardPainter extends CustomPainter {
       );
     }
 
-    // อาหาร
     if (food >= 0) {
       final rect = _cellRect(food, cell);
       canvas.drawCircle(rect.center, cell * 0.35, Paint()..color = Colors.redAccent);
     }
 
-    // ตัวงู
     final n = body.length;
     for (var i = 0; i < n; i++) {
       final isHead = i == n - 1;
-      final shade = 0.55 + 0.45 * (i / max(1, n - 1)); // หางจางกว่า หัวเข้มกว่า
+      final shade = 0.55 + 0.45 * (i / max(1, n - 1));
       final paint = Paint()
         ..color = isHead
             ? Colors.lightGreenAccent
